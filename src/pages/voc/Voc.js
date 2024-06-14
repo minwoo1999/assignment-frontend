@@ -22,7 +22,11 @@ function Voc() {
   const [page, setPage] = useState(0);
   const [myIp, setMyIp] = useState('');
   const scrollPosition = useRef(0);
-  const debounceTimeout = useRef(null);
+  const debounceTimeout = useRef(null);// 현재 시스템의 로컬 시간을 가져옴
+  const localDateTime = DateTime.local();
+  // 현재 타임존의 이름을 확인
+  const currentZoneName = localDateTime.zoneName;
+  console.log(currentZoneName);
 
   const handleFetchMyIP = async () => {
     try {
@@ -34,6 +38,17 @@ function Voc() {
       console.error('Error fetching IP address:', error);
     }
   };
+
+  function convertToISO8601(dateString) {
+    // 한국 시간 포맷을 Luxon의 DateTime 객체로 변환
+    dateString = dateString.replace('오전', 'AM').replace('오후', 'PM');
+    const date = DateTime.fromFormat(dateString, 'yyyy년 M월 d일 a h:mm', { zone: 'Asia/Seoul' });
+    // UTC 시간으로 변환
+    const utcDate = date.toUTC();
+
+    // ISO 8601 포맷으로 변환
+    return utcDate.toISO();
+}
 
   const fetchData = async () => {
     try {
@@ -49,8 +64,8 @@ function Voc() {
       const response = await axios.get(searchQuery);
       const newData = response.data.data.content.map(item => ({
         ...item,
-        startTime: DateTime.fromISO(item.startTime).toLocaleString(DateTime.DATETIME_MED),
-        endTime: DateTime.fromISO(item.endTime).toLocaleString(DateTime.DATETIME_MED)
+        startTime: DateTime.fromISO(item.startTime).setZone('local').toLocaleString(DateTime.DATETIME_MED),
+        endTime: DateTime.fromISO(item.endTime).setZone('local').toLocaleString(DateTime.DATETIME_MED)
       }));
 
       setData(prevData => loadingMore ? [...prevData, ...newData] : newData);
@@ -154,8 +169,8 @@ function Voc() {
             <CommonTableRow key={item.id}>
               <CommonTableColumn>{item.ipAddress}</CommonTableColumn>
               <CommonTableColumn>{item.description}</CommonTableColumn>
-              <CommonTableColumn>{item.startTime}</CommonTableColumn>
-              <CommonTableColumn>{item.endTime}</CommonTableColumn>
+              <CommonTableColumn>{DateTime.fromISO(convertToISO8601(item.startTime)).setZone('local').toFormat('yyyy/LL/dd HH:mm')}</CommonTableColumn>
+              <CommonTableColumn>{DateTime.fromISO(convertToISO8601(item.endTime)).setZone('local').toFormat('yyyy/LL/dd HH:mm')}</CommonTableColumn>
               <CommonTableColumn>
                 <DeleteButton ipRoleId={item.id} onDelete={handleDelete} />
               </CommonTableColumn>
